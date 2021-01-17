@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+#
+# you need to download the CSV file from
+# https://www.alberta.ca/stats/covid-19-alberta-statistics.htm#data-export
+# it's a dynamic url =(
 
 import argparse
 import csv
@@ -7,7 +11,6 @@ import sqlite3
 import sys
 from os import path
 
-columns = ['Num', 'Reported', 'Zone', 'Gender', 'AgeGroup', 'Status', 'Type']
 
 def zone_lookup(c):
     zones = []
@@ -47,7 +50,7 @@ def main():
         print(args.zone)
         for z in args.zone:
             z = z.title()
-            if not 'Zone' in z:
+            if 'Zone' not in z:
                 if z == 'Unknown':
                     zone.append(z)
                 else:
@@ -56,7 +59,7 @@ def main():
                 zone.append(z)
 
         for z in zone:
-            if not z in zone_lookup(c):
+            if z not in zone_lookup(c):
                 print(f'Zone "{z}" is not a valid zone, use --list-zones for a list!')
                 sys.exit(1)
 
@@ -96,7 +99,6 @@ def main():
             for r1 in stats[rname]:
                 r.append('{:,}'.format(stats[rname][r1]))
             t.add_row(r)
-        #print(stats)
         print(t)
 
     if args.case_age:
@@ -131,7 +133,6 @@ def main():
                 zone.append(z)
 
         for z in zone:
-            #headers.append(z)
             for x in status:
                 stats[x][z] = {}
             for age in case_ages(c):
@@ -171,16 +172,15 @@ def main():
 
                     c.execute('DROP TABLE covid')
                     c.execute('CREATE TABLE covid (Num int, Reported text, Zone text, Gender text, AgeGroup text, Status text, Type text)')
-                    #print(f'Column names are {", ".join(row)}')
                     line_count += 1
                 else:
                     data.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
-                    #print(row)
-                    line_count +=1
+                    line_count += 1
             c.executemany('INSERT INTO covid VALUES (?,?,?,?,?,?,?)', data)
             print(f'Imported {line_count-1} lines.')
         conn.commit()
         conn.close()
+
 
 if __name__ == '__main__':
     main()

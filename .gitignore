@@ -1,6 +1,7 @@
 # custom ignores
 *.db
 *.csv
+.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--zone', dest='zone', action='append', help='Constrain results to zone (ie "Edmonton" or "Edmonton Zone")')
     parser.add_argument('--case-status', dest='case_status', action='store_true', default=False, help='List case totals by status')
     parser.add_argument('--case-age', dest='case_age', action='store_true', default=False, help='List case status by age')
+    parser.add_argument('--csv', dest='csv', action='store_true', default=False, help='Output CSV rather than a table')
 
     args = parser.parse_args()
 
@@ -47,7 +48,6 @@ def main():
     zone = None
     if args.zone:
         zone = []
-        print(args.zone)
         for z in args.zone:
             z = z.title()
             if 'Zone' not in z:
@@ -63,7 +63,8 @@ def main():
                 print(f'Zone "{z}" is not a valid zone, use --list-zones for a list!')
                 sys.exit(1)
 
-        print(f'Constraining results to zone(s): {", ".join(zone)}')
+        if not args.csv:
+            print(f'Constraining results to zone(s): {", ".join(zone)}')
 
     if args.case_status:
         headers = ['Status', 'All']
@@ -77,7 +78,6 @@ def main():
         if zone:
             for z in zone:
                 headers.append(z)
-            print(zone)
         else:
             zone = []
             for z in zone_lookup(c):
@@ -85,21 +85,31 @@ def main():
                 zone.append(z)
 
         for z in zone:
-            print(z)
             for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ?', [z]):
                 stats['Recovered'][z] = row[0]
             for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ?', [z]):
                 stats['Active'][z] = row[0]
             for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ?', [z]):
                 stats['Died'][z] = row[0]
-        t = PrettyTable(headers)
-        t.align = 'r'
+        if args.csv:
+            print(','.join(headers))
+        else:
+            t = PrettyTable(headers)
+            t.align = 'r'
+
         for rname in stats:
             r = [rname]
             for r1 in stats[rname]:
-                r.append('{:,}'.format(stats[rname][r1]))
-            t.add_row(r)
-        print(t)
+                if args.csv:
+                    r.append(stats[rname][r1])
+                else:
+                    r.append('{:,}'.format(stats[rname][r1]))
+            if args.csv:
+                print(','.join(str(a) for a in r))
+            else:
+                t.add_row(r)
+        if not args.csv:
+            print(t)
 
     if args.case_age:
         status = ['Recovered', 'Active', 'Died']
@@ -120,7 +130,6 @@ def main():
                     zt = z
                 for s in status:
                     header.append(f'{zt}-{s}')
-            print(zone)
         else:
             zone = []
             for z in zone_lookup(c):
@@ -143,15 +152,26 @@ def main():
                 for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ? and AgeGroup = ?', [z, age]):
                     stats['Died'][z][age] = row[0]
 
-        t = PrettyTable(header)
-        t.align = 'r'
+        if args.csv:
+            print(','.join(header))
+        else:
+            t = PrettyTable(header)
+            t.align = 'r'
+
         for rname in case_ages(c):
             r = [rname]
             for z in zone:
                 for x in status:
-                    r.append('{:,}'.format(stats[x][z][rname]))
-            t.add_row(r)
-        print(t)
+                    if args.csv:
+                        r.append(stats[x][z][rname])
+                    else:
+                        r.append('{:,}'.format(stats[x][z][rname]))
+            if args.csv:
+                print(','.join(str(a) for a in r))
+            else:
+                t.add_row(r)
+        if not args.csv:
+            print(t)
 
     if args.csvfile:
         if not path.isfile(args.csvfile):

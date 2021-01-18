@@ -6,11 +6,13 @@
 
 import argparse
 import csv
+import datetime
 from prettytable import PrettyTable
 import sqlite3
 import sys
 from os import path
 
+max_weeks = 53
 
 def zone_lookup(c):
     zones = []
@@ -26,6 +28,11 @@ def case_ages(c):
     return sorted(ages)
 
 
+def get_year_week(date_str):
+    d = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+    (year, week, weekday) = d.isocalendar()
+    return (year, week)
+
 def main():
 
     parser = argparse.ArgumentParser(description='Edmonton COVID Statistical Tool')
@@ -34,6 +41,7 @@ def main():
     parser.add_argument('--zone', dest='zone', action='append', help='Constrain results to zone (ie "Edmonton" or "Edmonton Zone")')
     parser.add_argument('--case-status', dest='case_status', action='store_true', default=False, help='List case totals by status')
     parser.add_argument('--case-age', dest='case_age', action='store_true', default=False, help='List case status by age')
+    parser.add_argument('--case-detected', dest='case_detected', action='store_true', default=False, help='List cases by week detected')
     parser.add_argument('--csv', dest='csv', action='store_true', default=False, help='Output CSV rather than a table')
 
     args = parser.parse_args()
@@ -172,6 +180,65 @@ def main():
                 t.add_row(r)
         if not args.csv:
             print(t)
+
+    if args.case_detected:
+        if not args.zone:
+            print('Use --zone to isolate to a particular zone')
+            sys.exit(1)
+
+        for z in zone:
+            header = ['Case Detected Week Of']
+            for age in case_ages(c):
+                header.append(age)
+            header.append('Total')
+
+            stats = {z: {}}
+
+            if args.csv:
+                print(','.join(header))
+            for year in [2020, 2021]:
+                stats[z][year] = {}
+                week = 1
+                while week < max_weeks:
+                    stats[z][year][week] = {}
+                    for age in case_ages(c):
+                        stats[z][year][week][age] = 0
+                        for row in c.execute('SELECT COUNT(Num) FROM covid where AgeGroup = ? and WeekNum = ? and Zone = ? and Reported LIKE ?', [age, week, z, str(year)+'-%']):
+                            stats[z][year][week][age] = row[0]
+                    week += 1
+
+            # TODO: for some reason, 2021 also includes 2020 and it's not supposed to...
+            print(f'Detected cases for zone: {z}')
+            for year in [2020, 2021]:
+                t = PrettyTable(header)
+                t.align = 'r'
+                if not args.csv:
+                    print(f'{year}:')
+                week = 1
+                while week < max_weeks:
+                    row = []
+                    first_of_week = datetime.datetime.fromisocalendar(year, week, 1)
+                    week_start = first_of_week.strftime('%Y-%m-%d')
+                    row.append(week_start)
+                    total = 0
+                    for age in stats[z][year][week].keys():
+                        row.append(stats[z][year][week][age])
+                        total += stats[z][year][week][age]
+                        #print(f'{week_start}: {age}: {stats[z][year][week][age]}')
+                    row.append(total)
+
+                    # only include if the total > 0
+                    if total > 0:
+                        if args.csv:
+                            print(','.join(str(a) for a in row))
+                        else:
+                            t.add_row(row)
+                    week += 1
+                if not args.csv:
+                    print(t)
+                    print('')
+            #print(stats[z])
+
 
     if args.csvfile:
         if not path.isfile(args.csvfile):

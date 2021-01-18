@@ -191,12 +191,13 @@ def main():
                         sys.exit(1)
 
                     c.execute('DROP TABLE covid')
-                    c.execute('CREATE TABLE covid (Num int, Reported text, Zone text, Gender text, AgeGroup text, Status text, Type text)')
+                    c.execute('CREATE TABLE covid (Num int, Reported text, WeekNum int, Zone text, Gender text, AgeGroup text, Status text, Type text)')
                     line_count += 1
                 else:
-                    data.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
+                    (year, weeknum) = get_year_week(row[1])
+                    data.append((row[0], row[1], weeknum, row[2], row[3], row[4], row[5], row[6]))
                     line_count += 1
-            c.executemany('INSERT INTO covid VALUES (?,?,?,?,?,?,?)', data)
+            c.executemany('INSERT INTO covid VALUES (?,?,?,?,?,?,?,?)', data)
             print(f'Imported {line_count-1} lines.')
         conn.commit()
         conn.close()

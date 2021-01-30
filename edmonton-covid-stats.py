@@ -16,7 +16,7 @@ import sqlite3
 import sys
 from os import path, environ
 
-max_weeks = 53
+MAX_WEEKS  = 53
 
 def zone_lookup(c):
     zones = []
@@ -218,7 +218,7 @@ def main():
             for year in [2020, 2021]:
                 stats[z][year] = {}
                 week = 1
-                while week < max_weeks:
+                while week < MAX_WEEKS:
                     stats[z][year][week] = {}
                     for age in case_ages(c):
                         stats[z][year][week][age] = 0
@@ -234,7 +234,7 @@ def main():
                 if not args.csv:
                     print(f'{year}:')
                 week = 1
-                while week < max_weeks:
+                while week < MAX_WEEKS:
                     row = []
                     first_of_week = datetime.datetime.fromisocalendar(year, week, 1)
                     week_start = first_of_week.strftime('%Y-%m-%d')

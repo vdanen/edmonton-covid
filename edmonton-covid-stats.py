@@ -269,7 +269,9 @@ def main():
                     week += 1
 
             # TODO: for some reason, 2021 also includes 2020 and it's not supposed to...
-            print(f'Detected cases for zone: {z}')
+            if not args.csv:
+                print(f'Detected cases for zone: {z}')
+
             for year in ALL_YEARS:
                 t = PrettyTable(header)
                 t.align = 'r'
@@ -326,7 +328,9 @@ def main():
                     month += 1
 
             # TODO: for some reason, 2021 also includes 2020 and it's not supposed to...
-            print(f'Detected cases for zone: {z}')
+            if not args.csv:
+                print(f'Detected cases for zone: {z}')
+
             for year in ALL_YEARS:
                 t = PrettyTable(header)
                 t.align = 'r'

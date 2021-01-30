@@ -47,7 +47,8 @@ def main():
     parser.add_argument('--zone', dest='zone', action='append', help='Constrain results to zone (ie "Edmonton" or "Edmonton Zone")')
     parser.add_argument('--case-status', dest='case_status', action='store_true', default=False, help='List case totals by status')
     parser.add_argument('--case-age', dest='case_age', action='store_true', default=False, help='List case status by age')
-    parser.add_argument('--case-detected', dest='case_detected', action='store_true', default=False, help='List cases by week detected')
+    parser.add_argument('--case-detected-weeks', dest='case_detected_weeks', action='store_true', default=False, help='List cases by week detected')
+    parser.add_argument('--case-detected-months', dest='case_detected_months', action='store_true', default=False, help='List cases by month detected')
     parser.add_argument('--csv', dest='csv', action='store_true', default=False, help='Output CSV rather than a table')
     parser.add_argument('--config', dest='config', metavar='CONFIG_FILE', help='Configuration file, default is $HOME/.gsheet.ini')
 
@@ -202,7 +203,7 @@ def main():
         if not args.csv:
             print(t)
 
-    if args.case_detected:
+    if args.case_detected_weeks:
         if not args.zone:
             print('Use --zone to isolate to a particular zone')
             sys.exit(1)
@@ -260,6 +261,64 @@ def main():
                     print('')
             #print(stats[z])
 
+    if args.case_detected_months:
+        if not args.zone:
+            print('Use --zone to isolate to a particular zone')
+            sys.exit(1)
+
+        for z in zone:
+            header = ['Case Detected Month Of']
+            for age in case_ages(c):
+                header.append(age)
+            header.append('Total')
+
+            stats = {z: {}}
+
+            if args.csv:
+                print(','.join(header))
+            for year in ALL_YEARS:
+                stats[z][year] = {}
+                month = 1
+                while month < MAX_MONTHS:
+                    stats[z][year][month] = {}
+                    for age in case_ages(c):
+                        stats[z][year][month][age] = 0
+                        mts = f'{year}-{month:02}-%'
+                        for row in c.execute('SELECT COUNT(Num) FROM covid where AgeGroup = ? and Zone = ? and Reported LIKE ?', [age, z, mts]):
+                            stats[z][year][month][age] = row[0]
+                    month += 1
+
+            # TODO: for some reason, 2021 also includes 2020 and it's not supposed to...
+            print(f'Detected cases for zone: {z}')
+            for year in ALL_YEARS:
+                t = PrettyTable(header)
+                t.align = 'r'
+                if not args.csv:
+                    print(f'{year}:')
+                month = 1
+                while month < MAX_MONTHS:
+                    row = []
+                    #first_of_week = datetime.datetime.fromisocalendar(year, week, 1)
+                    #week_start = first_of_week.strftime('%Y-%m-%d')
+                    row.append(f'{year}/{month:02}')
+                    total = 0
+                    for age in stats[z][year][month].keys():
+                        row.append(stats[z][year][month][age])
+                        total += stats[z][year][month][age]
+                        #print(f'{week_start}: {age}: {stats[z][year][week][age]}')
+                    row.append(total)
+
+                    # only include if the total > 0
+                    if total > 0:
+                        if args.csv:
+                            print(','.join(str(a) for a in row))
+                        else:
+                            t.add_row(row)
+                    month += 1
+                if not args.csv:
+                    print(t)
+                    print('')
+            #print(stats[z])
 
     if args.csvfile:
         if not path.isfile(args.csvfile):

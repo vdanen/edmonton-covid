@@ -251,9 +251,9 @@ def main():
             line_count = 0
             for row in csv_reader:
                 if line_count == 0:
-                    # ('Num', 'Date reported', 'Alberta Health Services Zone', 'Gender', 'Age group', 'Case status', 'Case type')
-                    # use a fixed set, the above is what the edmonton covid export has
-                    if len(row) != 7:
+                    # ('Date reported', 'Alberta Health Services Zone', 'Gender', 'Age group', 'Case status', 'Case type')
+                    # use a fixed set, the above is what the Alberta covid export has
+                    if len(row) != 6:
                         print(f'Unexpected number of columns in {args.csvfile}; expected 7 got {len(row)}!')
                         sys.exit(1)
 
@@ -261,8 +261,8 @@ def main():
                     c.execute('CREATE TABLE covid (Num int, Reported text, WeekNum int, Zone text, Gender text, AgeGroup text, Status text, Type text)')
                     line_count += 1
                 else:
-                    (year, weeknum) = get_year_week(row[1])
-                    data.append((row[0], row[1], weeknum, row[2], row[3], row[4], row[5], row[6]))
+                    (year, weeknum) = get_year_week(row[0])
+                    data.append((line_count, row[0], weeknum, row[1], row[2], row[3], row[4], row[5]))
                     line_count += 1
             c.executemany('INSERT INTO covid VALUES (?,?,?,?,?,?,?,?)', data)
             print(f'Imported {line_count-1} lines.')

@@ -27,19 +27,42 @@ def zone_lookup(c):
     zones = []
     for row in c.execute('SELECT DISTINCT Zone from covid'):
         zones.append(row[0])
+
     return zones
+
+
+def get_zones(zones, c):
+    zone = []
+    for z in zones:
+        z = z.title()
+        if 'Zone' not in z:
+            if z == 'Unknown':
+                zone.append(z)
+            else:
+                zone.append(f'{z} Zone')
+        else:
+            zone.append(z)
+
+    for z in zone:
+        if z not in zone_lookup(c):
+            print(f'Zone "{z}" is not a valid zone, use --list-zones for a list!')
+            sys.exit(1)
+
+    return zone
 
 
 def case_ages(c):
     ages = []
     for row in c.execute('SELECT DISTINCT AgeGroup FROM covid'):
         ages.append(row[0])
+
     return sorted(ages)
 
 
 def get_year_week(date_str):
     d = datetime.datetime.strptime(date_str, '%Y-%m-%d')
     (year, week, weekday) = d.isocalendar()
+
     return year, week
 
 
@@ -87,22 +110,7 @@ def main():
 
     zone = None
     if args.zone:
-        zone = []
-        for z in args.zone:
-            z = z.title()
-            if 'Zone' not in z:
-                if z == 'Unknown':
-                    zone.append(z)
-                else:
-                    zone.append(f'{z} Zone')
-            else:
-                zone.append(z)
-
-        for z in zone:
-            if z not in zone_lookup(c):
-                print(f'Zone "{z}" is not a valid zone, use --list-zones for a list!')
-                sys.exit(1)
-
+        zone = get_zones(args.zone, c)
         if not args.csv:
             print(f'Constraining results to zone(s): {", ".join(zone)}')
 

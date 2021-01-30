@@ -87,9 +87,9 @@ def do_case_status(zone, print_csv, c):
     # it will return the CSV list for whatever the caller wants to do with it if
     # args.csv is True, otherwise it will print to stdout
     csv_output = ''
-    headers    = ['Status', 'All']
-    stats      = {'Recovered': {}, 'Active': {}, 'Died': {}, 'Total': {'all': 0}}
-    #stats['Total']['all'] = 0
+
+    headers = ['Status', 'All']
+    stats   = {'Recovered': {}, 'Active': {}, 'Died': {}, 'Total': {'all': 0}}
 
     for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered"'):
         stats['Recovered']['all'] = row[0]

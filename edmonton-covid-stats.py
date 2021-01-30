@@ -325,8 +325,9 @@ def main():
                 if not args.csv:
                     print(f'{year}:')
                 month = 1
-                row   = []
+
                 while month < MAX_MONTHS:
+                    row = []
                     row.append(f'{year}/{month:02}')
                     total = 0
                     for age in stats[z][year][month].keys():

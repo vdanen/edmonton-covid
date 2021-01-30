@@ -17,6 +17,8 @@ import sys
 from os import path, environ
 
 MAX_WEEKS  = 53
+MAX_MONTHS = 13
+ALL_YEARS  = [2020, 2021]
 
 def zone_lookup(c):
     zones = []
@@ -215,7 +217,7 @@ def main():
 
             if args.csv:
                 print(','.join(header))
-            for year in [2020, 2021]:
+            for year in ALL_YEARS:
                 stats[z][year] = {}
                 week = 1
                 while week < MAX_WEEKS:
@@ -228,7 +230,7 @@ def main():
 
             # TODO: for some reason, 2021 also includes 2020 and it's not supposed to...
             print(f'Detected cases for zone: {z}')
-            for year in [2020, 2021]:
+            for year in ALL_YEARS:
                 t = PrettyTable(header)
                 t.align = 'r'
                 if not args.csv:
@@ -266,7 +268,9 @@ def main():
 
         data       = []
         csv_header = 'Num,Date reported,Alberta Health Services Zone,Gender,Age group,Case status,Case type\n'
-        csv_years  = {2020: csv_header, 2021: csv_header}
+        csv_years  = {}
+        for y in ALL_YEARS:
+            csv_years[y] = csv_header
 
         with open(args.csvfile) as covid_file:
             csv_reader = csv.reader(covid_file, delimiter=',')

@@ -66,6 +66,82 @@ def get_year_week(date_str):
     return year, week
 
 
+def do_case_status(zone, print_csv, c):
+    # Function to print current case status
+    #
+    # it will return the CSV list for whatever the caller wants to do with it if
+    # args.csv is True, otherwise it will print to stdout
+    csv_output = ''
+    headers    = ['Status', 'All']
+    stats      = {'Recovered': {}, 'Active': {}, 'Died': {}, 'Total': {'all': 0}}
+    #stats['Total']['all'] = 0
+
+    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered"'):
+        stats['Recovered']['all'] = row[0]
+        stats['Total']['all'] += row[0]
+    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active"'):
+        stats['Active']['all'] = row[0]
+        stats['Total']['all'] += row[0]
+    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died"'):
+        stats['Died']['all'] = row[0]
+        stats['Total']['all'] += row[0]
+    if zone:
+        for z in zone:
+            headers.append(z)
+    else:
+        zone = []
+        for z in zone_lookup(c):
+            headers.append(z)
+            zone.append(z)
+
+    for z in zone:
+        stats['Total'][z] = 0
+        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ?', [z]):
+            stats['Recovered'][z] = row[0]
+            stats['Total'][z] += row[0]
+        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ?', [z]):
+            stats['Active'][z] = row[0]
+            stats['Total'][z] += row[0]
+        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ?', [z]):
+            stats['Died'][z] = row[0]
+            stats['Total'][z] += row[0]
+    if print_csv:
+        csv_output = '%s\n' % ','.join(headers)
+    else:
+        t = PrettyTable(headers)
+        t.align = 'r'
+
+    for rname in stats:
+        r = [rname]
+        for r1 in stats[rname]:
+            if print_csv:
+                r.append(stats[rname][r1])
+            else:
+                r.append('{:,}'.format(stats[rname][r1]))
+        if print_csv:
+            csv_output += '%s\n' % ','.join(str(a) for a in r)
+        else:
+            t.add_row(r)
+
+    if not print_csv:
+        print(t)
+
+        p_infected  = (stats['Total']['all'] / AB_POP) * 100
+        p_recovered = (stats['Recovered']['all'] / stats['Total']['all']) * 100
+        p_died      = (stats['Died']['all'] / stats['Total']['all']) * 100
+        p_died_all  = (stats['Died']['all'] / AB_POP) * 100
+        p_active    = (stats['Active']['all'] / AB_POP) * 100
+
+        print(f'\nGiven an Alberta population of {AB_POP:,}')
+        print(f'  {p_infected:.2f}% of the population was infected')
+        print(f'  {p_active:.2f}% of the population is currently infected')
+        print(f'  {p_died_all:.2f}% of the population died')
+        print(f'  {p_died:.2f}% of those infected died')
+        print(f'  {p_recovered:.2f}% of those infected have recovered')
+
+    return csv_output
+
+
 def main():
 
     parser = argparse.ArgumentParser(description='Edmonton COVID Statistical Tool')
@@ -115,70 +191,10 @@ def main():
             print(f'Constraining results to zone(s): {", ".join(zone)}')
 
     if args.case_status:
-        headers = ['Status', 'All']
-        stats = {'Recovered': {}, 'Active': {}, 'Died': {}, 'Total': {}}
-        stats['Total']['all'] = 0
-        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered"'):
-            stats['Recovered']['all'] = row[0]
-            stats['Total']['all'] += row[0]
-        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active"'):
-            stats['Active']['all'] = row[0]
-            stats['Total']['all'] += row[0]
-        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died"'):
-            stats['Died']['all'] = row[0]
-            stats['Total']['all'] += row[0]
-        if zone:
-            for z in zone:
-                headers.append(z)
-        else:
-            zone = []
-            for z in zone_lookup(c):
-                headers.append(z)
-                zone.append(z)
+        csv_output = do_case_status(zone, args.csv, c)
 
-        for z in zone:
-            stats['Total'][z] = 0
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ?', [z]):
-                stats['Recovered'][z] = row[0]
-                stats['Total'][z] += row[0]
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ?', [z]):
-                stats['Active'][z] = row[0]
-                stats['Total'][z] += row[0]
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ?', [z]):
-                stats['Died'][z] = row[0]
-                stats['Total'][z] += row[0]
         if args.csv:
-            print(','.join(headers))
-        else:
-            t = PrettyTable(headers)
-            t.align = 'r'
-
-        for rname in stats:
-            r = [rname]
-            for r1 in stats[rname]:
-                if args.csv:
-                    r.append(stats[rname][r1])
-                else:
-                    r.append('{:,}'.format(stats[rname][r1]))
-            if args.csv:
-                print(','.join(str(a) for a in r))
-            else:
-                t.add_row(r)
-        if not args.csv:
-            print(t)
-
-            p_infected  = (stats['Total']['all']/AB_POP)*100
-            p_recovered = (stats['Recovered']['all']/stats['Total']['all'])*100
-            p_died      = (stats['Died']['all'] / stats['Total']['all']) * 100
-            p_died_all  = (stats['Died']['all']/AB_POP)*100
-            p_active    = (stats['Active']['all']/AB_POP)*100
-
-            print(f'\nGiven an Alberta population of {AB_POP:,}')
-            print(f'  {p_infected:.2f}% of the population was infected')
-            print(f'  {p_active:.2f}% of the population is currently infected')
-            print(f'  {p_died_all:.2f}% of the population died')
-            print(f'  {p_died:.2f}% of those infected died')
-            print(f'  {p_recovered:.2f}% of those infected have recovered')
+            print(csv_output)
 
     if args.case_age:
         status = ['Recovered', 'Active', 'Died']

@@ -98,13 +98,17 @@ def main():
 
     if args.case_status:
         headers = ['Status', 'All']
-        stats = {'Recovered': {}, 'Active': {}, 'Died': {}}
+        stats = {'Recovered': {}, 'Active': {}, 'Died': {}, 'Total': {}}
+        stats['Total']['all'] = 0
         for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered"'):
             stats['Recovered']['all'] = row[0]
+            stats['Total']['all'] += row[0]
         for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active"'):
             stats['Active']['all'] = row[0]
+            stats['Total']['all'] += row[0]
         for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died"'):
             stats['Died']['all'] = row[0]
+            stats['Total']['all'] += row[0]
         if zone:
             for z in zone:
                 headers.append(z)
@@ -115,12 +119,16 @@ def main():
                 zone.append(z)
 
         for z in zone:
+            stats['Total'][z] = 0
             for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ?', [z]):
                 stats['Recovered'][z] = row[0]
+                stats['Total'][z] += row[0]
             for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ?', [z]):
                 stats['Active'][z] = row[0]
+                stats['Total'][z] += row[0]
             for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ?', [z]):
                 stats['Died'][z] = row[0]
+                stats['Total'][z] += row[0]
         if args.csv:
             print(','.join(headers))
         else:

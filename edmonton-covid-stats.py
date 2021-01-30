@@ -19,6 +19,8 @@ from os import path, environ
 MAX_WEEKS  = 53
 MAX_MONTHS = 13
 ALL_YEARS  = [2020, 2021]
+# as per https://www.alberta.ca/population-statistics.aspx
+AB_POP     = 4428112
 
 def zone_lookup(c):
     zones = []
@@ -148,6 +150,19 @@ def main():
                 t.add_row(r)
         if not args.csv:
             print(t)
+
+            p_infected  = (stats['Total']['all']/AB_POP)*100
+            p_recovered = (stats['Recovered']['all']/stats['Total']['all'])*100
+            p_died      = (stats['Died']['all'] / stats['Total']['all']) * 100
+            p_died_all  = (stats['Died']['all']/AB_POP)*100
+            p_active    = (stats['Active']['all']/AB_POP)*100
+
+            print(f'\nGiven an Alberta population of {AB_POP:,}')
+            print(f'  {p_infected:.2f}% of the population was infected')
+            print(f'  {p_active:.2f}% of the population is currently infected')
+            print(f'  {p_died_all:.2f}% of the population died')
+            print(f'  {p_died:.2f}% of those infected died')
+            print(f'  {p_recovered:.2f}% of those infected have recovered')
 
     if args.case_age:
         status = ['Recovered', 'Active', 'Died']

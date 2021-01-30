@@ -5,12 +5,16 @@
 # it's a dynamic url =(
 
 import argparse
+import configparser
 import csv
 import datetime
+from io import StringIO
+import pandas
+from gspread_pandas import Spread, Client
 from prettytable import PrettyTable
 import sqlite3
 import sys
-from os import path
+from os import path, environ
 
 max_weeks = 53
 
@@ -43,8 +47,23 @@ def main():
     parser.add_argument('--case-age', dest='case_age', action='store_true', default=False, help='List case status by age')
     parser.add_argument('--case-detected', dest='case_detected', action='store_true', default=False, help='List cases by week detected')
     parser.add_argument('--csv', dest='csv', action='store_true', default=False, help='Output CSV rather than a table')
+    parser.add_argument('--config', dest='config', metavar='CONFIG_FILE', help='Configuration file, default is $HOME/.gsheet.ini')
 
     args = parser.parse_args()
+
+    config = configparser.ConfigParser()
+
+    if args.config:
+        config.read(args.config)
+    else:
+        config.read(environ['HOME'] + '/.gsheet.ini')
+
+    sheet_update = True
+    try:
+        token_user = config.get('covid', 'token_user')
+        sheet_book = config.get('covid', 'sheet_book')
+    except:
+        sheet_update = False
 
     conn = sqlite3.connect('edmonton-covid.db')
     c    = conn.cursor()
@@ -245,7 +264,10 @@ def main():
             print(f'{args.csvfile} is not a file to import!')
             sys.exit(1)
 
-        data = []
+        data       = []
+        csv_header = 'Num,Date reported,Alberta Health Services Zone,Gender,Age group,Case status,Case type\n'
+        csv_years  = {2020: csv_header, 2021: csv_header}
+
         with open(args.csvfile) as covid_file:
             csv_reader = csv.reader(covid_file, delimiter=',')
             line_count = 0
@@ -263,11 +285,21 @@ def main():
                 else:
                     (year, weeknum) = get_year_week(row[0])
                     data.append((line_count, row[0], weeknum, row[1], row[2], row[3], row[4], row[5]))
+                    csv_years[year] += f'{line_count},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]}\n'
                     line_count += 1
             c.executemany('INSERT INTO covid VALUES (?,?,?,?,?,?,?,?)', data)
             print(f'Imported {line_count-1} lines.')
         conn.commit()
         conn.close()
+
+        if sheet_update:
+            for csv_year in csv_years:
+                sname  = f'PIVOT-{csv_year}'
+                df     = pandas.read_csv(StringIO(csv_years[csv_year]))
+                spread = Spread(sheet_book)
+                spread.df_to_sheet(df, index=False, sheet=sname,start='A1', replace=True)
+                spread.freeze(rows=1, sheet=sname)
+            print(f'Updated spreadsheet: {sheet_book}')
 
 
 if __name__ == '__main__':

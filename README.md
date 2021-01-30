@@ -14,3 +14,13 @@ eventually).
 This is Sunday-afternoon hacking stuff, mostly to keep me sharp as I don't
 have the opportunity to do much work in Python lately.  Sharing in case
 someone else finds it interesting.
+
+The script will automatically try to update a google sheet as defined in
+~/.gsheet.ini (if this file exists).  If the file does not exist, it will
+not attempt to update anything.
+
+The sheet needs tabs titled "PIVOT-[YEAR]" (i.e. PIVOT-2020) and will put
+the data for that year in the sheet.  What you do with that is up to you, I
+use it to build charts and such.  It will _only_ do this when you import,
+so it will first update the SQLite database and then attempt to update the
+spreadsheet.  Any query operations do not touch the spreadsheet.

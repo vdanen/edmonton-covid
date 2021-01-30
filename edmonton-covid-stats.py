@@ -23,6 +23,21 @@ ALL_YEARS  = [2020, 2021]
 AB_POP     = 4428112
 
 
+def output_make_headers(headers):
+    icvs = '%s\n' % ','.join(headers)
+    t = PrettyTable(headers)
+    t.align = 'r'
+
+    return icvs, t
+
+
+def output_add_row(icvs, t, r):
+    icvs += '%s\n' % ','.join(str(a) for a in r)
+    t.add_row(r)
+
+    return icvs, t
+
+
 def zone_lookup(c):
     zones = []
     for row in c.execute('SELECT DISTINCT Zone from covid'):
@@ -105,11 +120,8 @@ def do_case_status(zone, print_csv, c):
         for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ?', [z]):
             stats['Died'][z] = row[0]
             stats['Total'][z] += row[0]
-    if print_csv:
-        csv_output = '%s\n' % ','.join(headers)
-    else:
-        t = PrettyTable(headers)
-        t.align = 'r'
+
+    (csv, t) = output_make_headers(headers)
 
     for rname in stats:
         r = [rname]
@@ -118,10 +130,7 @@ def do_case_status(zone, print_csv, c):
                 r.append(stats[rname][r1])
             else:
                 r.append('{:,}'.format(stats[rname][r1]))
-        if print_csv:
-            csv_output += '%s\n' % ','.join(str(a) for a in r)
-        else:
-            t.add_row(r)
+        (csv, t) = output_add_row(csv, t, r)
 
     if not print_csv:
         print(t)

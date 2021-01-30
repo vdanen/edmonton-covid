@@ -86,7 +86,6 @@ def do_case_status(zone, print_csv, c):
     #
     # it will return the CSV list for whatever the caller wants to do with it if
     # args.csv is True, otherwise it will print to stdout
-    csv_output = ''
 
     headers = ['Status', 'All']
     stats   = {'Recovered': {}, 'Active': {}, 'Died': {}, 'Total': {'all': 0}}
@@ -148,7 +147,72 @@ def do_case_status(zone, print_csv, c):
         print(f'  {p_died:.2f}% of those infected died')
         print(f'  {p_recovered:.2f}% of those infected have recovered')
 
-    return csv_output
+    csv += '\n'
+    return csv
+
+
+def do_case_age(zone, print_csv, c):
+    status  = ['Recovered', 'Active', 'Died']
+    headers = ['Case Age']
+    stats   = {'Recovered': {'all': {}}, 'Active': {'all': {}}, 'Died': {'all': {}}}
+
+    for age in case_ages(c):
+        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and AgeGroup = ?', [age]):
+            stats['Recovered']['all'][age] = row[0]
+        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and AgeGroup = ?', [age]):
+            stats['Active']['all'][age] = row[0]
+        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and AgeGroup = ?', [age]):
+            stats['Died']['all'][age] = row[0]
+    if zone:
+        for z in zone:
+            if 'Zone' in z:
+                zt = z.split(' ')[0]
+            else:
+                zt = z
+            for s in status:
+                headers.append(f'{zt}-{s}')
+    else:
+        zone = []
+        for z in zone_lookup(c):
+            if 'Zone' in z:
+                zt = z.split(' ')[0]
+            else:
+                zt = z
+            for s in status:
+                headers.append(f'{zt}-{s}')
+            zone.append(z)
+
+    for z in zone:
+        for x in status:
+            stats[x][z] = {}
+        for age in case_ages(c):
+            for row in c.execute(
+                    'SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ? and AgeGroup = ?', [z, age]):
+                stats['Recovered'][z][age] = row[0]
+            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ? and AgeGroup = ?',
+                                 [z, age]):
+                stats['Active'][z][age] = row[0]
+            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ? and AgeGroup = ?',
+                                 [z, age]):
+                stats['Died'][z][age] = row[0]
+
+    (csv, t) = output_make_headers(headers)
+
+    for rname in case_ages(c):
+        r = [rname]
+        for z in zone:
+            for x in status:
+                if print_csv:
+                    r.append(stats[x][z][rname])
+                else:
+                    r.append('{:,}'.format(stats[x][z][rname]))
+        (csv, t) = output_add_row(csv, t, r)
+
+    if not print_csv:
+        print(t)
+
+    csv += '\n'
+    return csv
 
 
 def main():
@@ -170,9 +234,10 @@ def main():
     parser.add_argument('--config', dest='config', metavar='CONFIG_FILE',
                         help='Configuration file, default is $HOME/.gsheet.ini')
 
-    args = parser.parse_args()
-
+    args   = parser.parse_args()
     config = configparser.ConfigParser()
+
+    csv_output = ''
 
     if args.config:
         config.read(args.config)
@@ -200,72 +265,15 @@ def main():
             print(f'Constraining results to zone(s): {", ".join(zone)}')
 
     if args.case_status:
-        csv_output = do_case_status(zone, args.csv, c)
-
-        if args.csv:
-            print(csv_output)
+        csv_output += do_case_status(zone, args.csv, c)
 
     if args.case_age:
-        status = ['Recovered', 'Active', 'Died']
-        header = ['Case Age']
-        stats = {'Recovered': {'all': {}}, 'Active': {'all': {}}, 'Died': {'all': {}}}
-        for age in case_ages(c):
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and AgeGroup = ?', [age]):
-                stats['Recovered']['all'][age] = row[0]
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and AgeGroup = ?', [age]):
-                stats['Active']['all'][age] = row[0]
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and AgeGroup = ?', [age]):
-                stats['Died']['all'][age] = row[0]
-        if zone:
-            for z in zone:
-                if 'Zone' in z:
-                    zt = z.split(' ')[0]
-                else:
-                    zt = z
-                for s in status:
-                    header.append(f'{zt}-{s}')
-        else:
-            zone = []
-            for z in zone_lookup(c):
-                if 'Zone' in z:
-                    zt = z.split(' ')[0]
-                else:
-                    zt = z
-                for s in status:
-                    header.append(f'{zt}-{s}')
-                zone.append(z)
+        csv_output += do_case_age(zone, args.csv, c)
 
-        for z in zone:
-            for x in status:
-                stats[x][z] = {}
-            for age in case_ages(c):
-                for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ? and AgeGroup = ?', [z, age]):
-                    stats['Recovered'][z][age] = row[0]
-                for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ? and AgeGroup = ?', [z, age]):
-                    stats['Active'][z][age] = row[0]
-                for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ? and AgeGroup = ?', [z, age]):
-                    stats['Died'][z][age] = row[0]
+    # catch all, print any CSV output
 
-        if args.csv:
-            print(','.join(header))
-        else:
-            t = PrettyTable(header)
-            t.align = 'r'
-
-        for rname in case_ages(c):
-            r = [rname]
-            for z in zone:
-                for x in status:
-                    if args.csv:
-                        r.append(stats[x][z][rname])
-                    else:
-                        r.append('{:,}'.format(stats[x][z][rname]))
-            if args.csv:
-                print(','.join(str(a) for a in r))
-            else:
-                t.add_row(r)
-        if not args.csv:
-            print(t)
+    if args.csv:
+        print(csv_output)
 
     if args.case_detected_weeks:
         if not args.zone:
@@ -383,6 +391,9 @@ def main():
                     print(t)
                     print('')
 
+    #
+    # import new data and update SQLite db and possibly a google sheet
+    #
     if args.csvfile:
         if not path.isfile(args.csvfile):
             print(f'{args.csvfile} is not a file to import!')

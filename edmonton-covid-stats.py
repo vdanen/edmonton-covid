@@ -10,7 +10,7 @@ import csv
 import datetime
 from io import StringIO
 import pandas
-from gspread_pandas import Spread, Client
+from gspread_pandas import Spread
 from prettytable import PrettyTable
 import sqlite3
 import sys
@@ -21,6 +21,7 @@ MAX_MONTHS = 13
 ALL_YEARS  = [2020, 2021]
 # as per https://www.alberta.ca/population-statistics.aspx
 AB_POP     = 4428112
+
 
 def zone_lookup(c):
     zones = []
@@ -39,20 +40,27 @@ def case_ages(c):
 def get_year_week(date_str):
     d = datetime.datetime.strptime(date_str, '%Y-%m-%d')
     (year, week, weekday) = d.isocalendar()
-    return (year, week)
+    return year, week
+
 
 def main():
 
     parser = argparse.ArgumentParser(description='Edmonton COVID Statistical Tool')
     parser.add_argument('--import', '-i', dest='csvfile', metavar='CSV_FILE', help='CSV file to import')
     parser.add_argument('--list-zones', dest='list_zones', action='store_true', default=False, help='List known zones')
-    parser.add_argument('--zone', dest='zone', action='append', help='Constrain results to zone (ie "Edmonton" or "Edmonton Zone")')
-    parser.add_argument('--case-status', dest='case_status', action='store_true', default=False, help='List case totals by status')
-    parser.add_argument('--case-age', dest='case_age', action='store_true', default=False, help='List case status by age')
-    parser.add_argument('--case-detected-weeks', dest='case_detected_weeks', action='store_true', default=False, help='List cases by week detected')
-    parser.add_argument('--case-detected-months', dest='case_detected_months', action='store_true', default=False, help='List cases by month detected')
+    parser.add_argument('--zone', dest='zone', action='append',
+                        help='Constrain results to zone (ie "Edmonton" or "Edmonton Zone")')
+    parser.add_argument('--case-status', dest='case_status', action='store_true', default=False,
+                        help='List case totals by status')
+    parser.add_argument('--case-age', dest='case_age', action='store_true', default=False,
+                        help='List case status by age')
+    parser.add_argument('--case-detected-weeks', dest='case_detected_weeks', action='store_true', default=False,
+                        help='List cases by week detected')
+    parser.add_argument('--case-detected-months', dest='case_detected_months', action='store_true', default=False,
+                        help='List cases by month detected')
     parser.add_argument('--csv', dest='csv', action='store_true', default=False, help='Output CSV rather than a table')
-    parser.add_argument('--config', dest='config', metavar='CONFIG_FILE', help='Configuration file, default is $HOME/.gsheet.ini')
+    parser.add_argument('--config', dest='config', metavar='CONFIG_FILE',
+                        help='Configuration file, default is $HOME/.gsheet.ini')
 
     args = parser.parse_args()
 
@@ -63,12 +71,12 @@ def main():
     else:
         config.read(environ['HOME'] + '/.gsheet.ini')
 
-    sheet_update = True
     try:
-        token_user = config.get('covid', 'token_user')
+        sheet_update = True
         sheet_book = config.get('covid', 'sheet_book')
     except:
         sheet_update = False
+        sheet_book = None
 
     conn = sqlite3.connect('edmonton-covid.db')
     c    = conn.cursor()
@@ -269,7 +277,6 @@ def main():
                     for age in stats[z][year][week].keys():
                         row.append(stats[z][year][week][age])
                         total += stats[z][year][week][age]
-                        #print(f'{week_start}: {age}: {stats[z][year][week][age]}')
                     row.append(total)
 
                     # only include if the total > 0
@@ -282,7 +289,6 @@ def main():
                 if not args.csv:
                     print(t)
                     print('')
-            #print(stats[z])
 
     if args.case_detected_months:
         if not args.zone:
@@ -319,16 +325,13 @@ def main():
                 if not args.csv:
                     print(f'{year}:')
                 month = 1
+                row   = []
                 while month < MAX_MONTHS:
-                    row = []
-                    #first_of_week = datetime.datetime.fromisocalendar(year, week, 1)
-                    #week_start = first_of_week.strftime('%Y-%m-%d')
                     row.append(f'{year}/{month:02}')
                     total = 0
                     for age in stats[z][year][month].keys():
                         row.append(stats[z][year][month][age])
                         total += stats[z][year][month][age]
-                        #print(f'{week_start}: {age}: {stats[z][year][week][age]}')
                     row.append(total)
 
                     # only include if the total > 0
@@ -341,7 +344,6 @@ def main():
                 if not args.csv:
                     print(t)
                     print('')
-            #print(stats[z])
 
     if args.csvfile:
         if not path.isfile(args.csvfile):
@@ -383,7 +385,7 @@ def main():
                 sname  = f'PIVOT-{csv_year}'
                 df     = pandas.read_csv(StringIO(csv_years[csv_year]))
                 spread = Spread(sheet_book)
-                spread.df_to_sheet(df, index=False, sheet=sname,start='A1', replace=True)
+                spread.df_to_sheet(df, index=False, sheet=sname, start='A1', replace=True)
                 spread.freeze(rows=1, sheet=sname)
             print(f'Updated spreadsheet: {sheet_book}')
 

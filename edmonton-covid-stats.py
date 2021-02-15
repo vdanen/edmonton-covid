@@ -152,49 +152,62 @@ def do_case_status(zone, print_csv, c):
 
 
 def do_case_age(zone, print_csv, c):
-    status  = ['Recovered', 'Active', 'Died']
+    status  = ['Total', 'Recovered', 'Active', 'Died']
     headers = ['Case Age']
-    stats   = {'Recovered': {'all': {}}, 'Active': {'all': {}}, 'Died': {'all': {}}}
+    stats   = {'Recovered': {'all': {}}, 'Active': {'all': {}}, 'Died': {'all': {}}, 'Total': {'all': {}}}
 
-    for age in case_ages(c):
-        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and AgeGroup = ?', [age]):
-            stats['Recovered']['all'][age] = row[0]
-        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and AgeGroup = ?', [age]):
-            stats['Active']['all'][age] = row[0]
-        for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and AgeGroup = ?', [age]):
-            stats['Died']['all'][age] = row[0]
+    #for age in case_ages(c):
+    #    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and AgeGroup = ?', [age]):
+    #        stats['Recovered']['all'][age] = row[0]
+    #    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and AgeGroup = ?', [age]):
+    #        stats['Active']['all'][age] = row[0]
+    #    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and AgeGroup = ?', [age]):
+    #        stats['Died']['all'][age] = row[0]
+
     if zone:
-        for z in zone:
-            if 'Zone' in z:
-                zt = z.split(' ')[0]
-            else:
-                zt = z
+        if len(zone) > 1:
+            for z in zone:
+                if 'Zone' in z:
+                    zt = z.split(' ')[0]
+                else:
+                    zt = z
+                for s in status:
+                    headers.append(f'{zt}-{s}')
+        else:
             for s in status:
-                headers.append(f'{zt}-{s}')
-    else:
-        zone = []
-        for z in zone_lookup(c):
-            if 'Zone' in z:
-                zt = z.split(' ')[0]
-            else:
-                zt = z
-            for s in status:
-                headers.append(f'{zt}-{s}')
-            zone.append(z)
+                headers.append(s)
 
-    for z in zone:
-        for x in status:
-            stats[x][z] = {}
+        for z in zone:
+            for x in status:
+                stats[x][z] = {}
+            for age in case_ages(c):
+                for row in c.execute(
+                        'SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ? and AgeGroup = ?', [z, age]):
+                    stats['Recovered'][z][age] = row[0]
+                    stats['Total'][z][age]     = row[0]
+                for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ? and AgeGroup = ?',
+                                     [z, age]):
+                    stats['Active'][z][age] = row[0]
+                    stats['Total'][z][age] += row[0]
+                for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ? and AgeGroup = ?',
+                                     [z, age]):
+                    stats['Died'][z][age]   = row[0]
+                    stats['Total'][z][age] += row[0]
+    else:
+        zone = ['all']
+        for s in status:
+            headers.append(s)
+
         for age in case_ages(c):
-            for row in c.execute(
-                    'SELECT COUNT(Num) FROM covid where Status = "Recovered" and Zone = ? and AgeGroup = ?', [z, age]):
-                stats['Recovered'][z][age] = row[0]
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and Zone = ? and AgeGroup = ?',
-                                 [z, age]):
-                stats['Active'][z][age] = row[0]
-            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and Zone = ? and AgeGroup = ?',
-                                 [z, age]):
-                stats['Died'][z][age] = row[0]
+            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and AgeGroup = ?', [age]):
+                stats['Recovered']['all'][age] = row[0]
+                stats['Total']['all'][age]     = row[0]
+            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and AgeGroup = ?', [age]):
+                stats['Active']['all'][age] = row[0]
+                stats['Total']['all'][age] += row[0]
+            for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and AgeGroup = ?', [age]):
+                stats['Died']['all'][age]   = row[0]
+                stats['Total']['all'][age] += row[0]
 
     (csv, t) = output_make_headers(headers)
 
@@ -373,7 +386,7 @@ def main():
 
                 while month < MAX_MONTHS:
                     row = []
-                    row.append(f'{year}/{month:02}')
+                    row.append(f'{year}-{month:02}')
                     total = 0
                     for age in stats[z][year][month].keys():
                         row.append(stats[z][year][month][age])

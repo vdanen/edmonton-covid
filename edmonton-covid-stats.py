@@ -156,14 +156,6 @@ def do_case_age(zone, print_csv, c):
     headers = ['Case Age']
     stats   = {'Recovered': {'all': {}}, 'Active': {'all': {}}, 'Died': {'all': {}}, 'Total': {'all': {}}}
 
-    #for age in case_ages(c):
-    #    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Recovered" and AgeGroup = ?', [age]):
-    #        stats['Recovered']['all'][age] = row[0]
-    #    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Active" and AgeGroup = ?', [age]):
-    #        stats['Active']['all'][age] = row[0]
-    #    for row in c.execute('SELECT COUNT(Num) FROM covid where Status = "Died" and AgeGroup = ?', [age]):
-    #        stats['Died']['all'][age] = row[0]
-
     if zone:
         if len(zone) > 1:
             for z in zone:

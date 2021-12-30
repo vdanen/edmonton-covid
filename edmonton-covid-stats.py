@@ -18,7 +18,7 @@ from os import path, environ
 
 MAX_WEEKS  = 53
 MAX_MONTHS = 13
-ALL_YEARS  = [2020, 2021]
+ALL_YEARS  = [2020, 2021, 2022]
 # as per https://www.alberta.ca/population-statistics.aspx
 AB_POP     = 4428112
 
